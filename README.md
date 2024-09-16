@@ -20,9 +20,7 @@ python setup.py install
 
 
 
-#
-## Usage
-### Step 1. Generate CAMs for train (train_aug) set.
+## Step 1. Generate CAMs for train (train_aug) set.
 ```
 CUDA_VISIBLE_DEVICES=0 python generate.py \
 --img_root /home/zhang.13617/Desktop/CLIP-ES/datasets/Birds \
@@ -30,6 +28,7 @@ CUDA_VISIBLE_DEVICES=0 python generate.py \
 --num_workers 1 \
 --cam_out_dir ./output/Bird1/cams
 
+```
 
 
 
@@ -37,9 +36,10 @@ CUDA_VISIBLE_DEVICES=0 python generate.py \
 
 
 ## Acknowledgement
-‘’‘
+
+```
 We borrowed the code from [CLIP](https://github.com/openai/CLIP) and [pytorch_grad_cam](https://github.com/jacobgil/pytorch-grad-cam/tree/61e9babae8600351b02b6e90864e4807f44f2d4a). Thanks for their wonderful works.
 
 Code is modified from [CLIP-ES](https://github.com/linyq2117/CLIP-ES) and [pytorch_grad_cam](https://github.com/jacobgil/pytorch-grad-cam/tree/61e9babae8600351b02b6e90864e4807f44f2d4a)
 
-’‘’
+```
