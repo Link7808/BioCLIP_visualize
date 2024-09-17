@@ -57,16 +57,7 @@ def reshape_transform(tensor, height=None, width=None):
     result = result.permute(0, 3, 1, 2)  # Shape: (batch_size, hidden_dim, height, width)
     return result
 
-def split_dataset(dataset, n_splits):
-    if n_splits == 1:
-        return [dataset]
-    part = len(dataset) // n_splits
-    dataset_list = []
-    for i in range(n_splits - 1):
-        dataset_list.append(dataset[i*part:(i+1)*part])
-    dataset_list.append(dataset[(i+1)*part:])
 
-    return dataset_list
 
 def zeroshot_classifier(classnames, templates, model):
     with torch.no_grad():
@@ -114,13 +105,12 @@ def img_ms_and_flip(img_path, ori_height, ori_width, scales=[1.0], patch_size=16
     return all_imgs
 
 
-def perform(process_id, dataset_list, args, model, fg_text_features, cam):
+def perform(dataset_list, args, model, fg_text_features, cam):
     device_id = "cuda:1"
-    databin = dataset_list[process_id]
     model = model.to(device_id)
     fg_text_features = fg_text_features.to(device_id)
-    for im_idx, im in enumerate(tqdm(databin)):
-        img_path = os.path.join(args.img_root, im)
+    for im_idx, img_path in enumerate(tqdm(dataset_list)):
+        
         
         image = Image.open(img_path).convert("RGB")  
         ori_width, ori_height = image.size 
@@ -129,14 +119,15 @@ def perform(process_id, dataset_list, args, model, fg_text_features, cam):
         label_id_list = list(range(len(class_names))) 
         
         if len(label_list) == 0:
-            print(f"{im} has no valid class names.")
+            print(f"{img_path} has no valid class names.")
             continue
 
         ms_imgs = img_ms_and_flip(img_path, ori_height, ori_width, scales=[1.0])
-        ms_imgs = [ms_imgs[0]]
+        ms_imgs = [ms_imgs[0]]  
         cam_all_scales = []
         highres_cam_all_scales = []
         refined_cam_all_scales = []
+
         for image in ms_imgs:
             image = image.unsqueeze(0)
             h, w = image.shape[-2], image.shape[-1]
@@ -213,7 +204,11 @@ def perform(process_id, dataset_list, args, model, fg_text_features, cam):
         highres_cam_all_scales = highres_cam_all_scales[0]
         refined_cam_all_scales = refined_cam_all_scales[0]
 
-        np.save(os.path.join(args.cam_out_dir, im.replace('jpg', 'npy')),
+        # 提取文件名并替换扩展名为 .npy
+        output_filename = os.path.basename(img_path).replace('.jpg', '.npy')
+
+        # 使用 os.path.join 拼接保存路径
+        np.save(os.path.join(args.cam_out_dir, output_filename),
                 {"keys": keys.numpy(),
                 # "strided_cam": cam_per_scales.cpu().numpy(),
                 #"highres": highres_cam_all_scales.cpu().numpy().astype(np.float16),
@@ -223,24 +218,20 @@ def perform(process_id, dataset_list, args, model, fg_text_features, cam):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--img_root', type=str, default='/home/xxx/datasets/VOC2012/JPEGImages')
-    parser.add_argument('--split_file', type=str, default='./voc12/train.txt')
-    parser.add_argument('--cam_out_dir', type=str, default='./final/ablation/baseline')
-    parser.add_argument('--num_workers', type=int, default=1)
+    parser.add_argument('--split_file', type=str, default='/home/zhang.13617/Desktop/BioCLIP_visualize/iNat/train_absolute.txt')
+    parser.add_argument('--cam_out_dir', type=str, default='/home/zhang.13617/Desktop/BioCLIP_visualize/output/cams')
     args = parser.parse_args()
 
     device = "cuda" 
     print(device)
 
     train_list = np.loadtxt(args.split_file, dtype=str)
-    train_list = [x + '.jpg' for x in train_list]
-    train_list = train_list[:3]  
 
 
     if not os.path.exists(args.cam_out_dir):
         os.makedirs(args.cam_out_dir)
 
-    model, _, _ = open_clip.create_model_and_transforms('hf-hub:imageomics/bioclip')
+    model, preprocess, _ = open_clip.create_model_and_transforms('hf-hub:imageomics/bioclip')
     model = model.to(device)
     tokenizer = open_clip.get_tokenizer('hf-hub:imageomics/bioclip')
 
@@ -248,10 +239,4 @@ if __name__ == "__main__":
 
     target_layers = [model.visual.transformer.resblocks[-1].ln_1]
     cam = GradCAM(model=model, target_layers=target_layers, reshape_transform=reshape_transform)
-
-    dataset_list = split_dataset(train_list, n_splits=args.num_workers)
-    if args.num_workers == 1:
-        perform(0, dataset_list, args, model, fg_text_features, cam)
-    else:
-        multiprocessing.spawn(perform, nprocs=args.num_workers,
-                              args=(dataset_list, args, model, fg_text_features, cam))
+    perform(train_list, args, model, fg_text_features, cam) 
