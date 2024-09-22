@@ -17,7 +17,7 @@ from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normal
 
 import types
 import sys
-sys.path.insert(0, '/home/zhang.13617/Desktop/CLIP-ES')
+sys.path.insert(0, '/home/zhang.13617/Desktop/BioCLIP_visualize')
 try:
     from torchvision.transforms import InterpolationMode
     BICUBIC = InterpolationMode.BICUBIC
@@ -104,23 +104,48 @@ def img_ms_and_flip(img_path, ori_height, ori_width, scales=[1.0], patch_size=16
         all_imgs.append(image_flip)
     return all_imgs
 
+def read_top_classes(file_path):
+    image_top_classes = {}
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+        idx = 0
+        while idx < len(lines):
+            line = lines[idx].strip()
+            if line.startswith('Image:'):
+                image_name = line.split(' ')[1].strip()
+                # Read the next two lines for Top 1 and Top 2 classes
+                top1_line = lines[idx + 1].strip()
+                top2_line = lines[idx + 2].strip()
 
+                # Extract class names
+                top1_class = top1_line.split(':')[1].split('with')[0].strip()
+                top2_class = top2_line.split(':')[1].split('with')[0].strip()
+
+                image_top_classes[image_name] = [top1_class, top2_class]
+                idx += 3
+            else:
+                idx += 1
+    return image_top_classes
 def perform(dataset_list, args, model, fg_text_features, cam):
     device_id = "cuda:1"
     model = model.to(device_id)
     fg_text_features = fg_text_features.to(device_id)
+    image_top_classes = read_top_classes('/home/zhang.13617/Desktop/BioCLIP_visualize/iNat/output.txt')#
+
     for im_idx, img_path in enumerate(tqdm(dataset_list)):
-        
-        
+
+        image_filename = os.path.basename(img_path)#111
+        top_classes = image_top_classes.get(image_filename, [])#111
+        if not top_classes:
+            print(f"No top classes found for image {image_filename}. Skipping.")
+            continue
+
+
         image = Image.open(img_path).convert("RGB")  
         ori_width, ori_height = image.size 
 
-        label_list = class_names  
+        label_list = top_classes
         label_id_list = list(range(len(class_names))) 
-        
-        if len(label_list) == 0:
-            print(f"{img_path} has no valid class names.")
-            continue
 
         ms_imgs = img_ms_and_flip(img_path, ori_height, ori_width, scales=[1.0])
         ms_imgs = [ms_imgs[0]]  
@@ -134,16 +159,24 @@ def perform(dataset_list, args, model, fg_text_features, cam):
             image = image.to(device_id)
             image_features, attn_weight_list = model.encode_image(image, h, w)
 
+
             cam_to_save = []
             highres_cam_to_save = []
             refined_cam_to_save = []
             keys = []
+            refined_cam_list = []
+            class_labels = []
+
+
+
 
             fg_features_temp = fg_text_features[label_id_list].to(device_id)
             input_tensor = [image_features, fg_features_temp.to(device_id), h, w]
 
             for idx, label in enumerate(label_list):
+                class_labels.append(label)
                 keys.append(class_names.index(label))
+                class_index = class_names.index(label)
                 targets = [ClipOutputTarget(label_list.index(label))]
 
                 #torch.cuda.empty_cache()
@@ -193,33 +226,52 @@ def perform(dataset_list, args, model, fg_text_features, cam):
                 cam_refined = cam_refined.cpu().numpy().astype(np.float32)
                 cam_refined_highres = scale_cam_image([cam_refined], (ori_width, ori_height))[0]
                 refined_cam_to_save.append(torch.tensor(cam_refined_highres))
+                output_filename = os.path.basename(img_path).replace('.jpg', f'_{label}.npy')
+                refined_cam_list.append(cam_refined_highres)
+                np.save(os.path.join(args.cam_out_dir, output_filename),
+                       {"key": class_index,
+                        "attn_highres": cam_refined_highres.astype(np.float16),
+                         })
 
-            keys = torch.tensor(keys)
+            #keys = torch.tensor(keys)
             #cam_all_scales.append(torch.stack(cam_to_save,dim=0))
-            highres_cam_all_scales.append(torch.stack(highres_cam_to_save,dim=0))
-            refined_cam_all_scales.append(torch.stack(refined_cam_to_save,dim=0))
+            #highres_cam_all_scales.append(torch.stack(highres_cam_to_save,dim=0))
+          #  refined_cam_all_scales.append(torch.stack(refined_cam_to_save,dim=0))
 
 
         #cam_all_scales = cam_all_scales[0]
-        highres_cam_all_scales = highres_cam_all_scales[0]
-        refined_cam_all_scales = refined_cam_all_scales[0]
-
+  
         # 提取文件名并替换扩展名为 .npy
-        output_filename = os.path.basename(img_path).replace('.jpg', '.npy')
+        #output_filename = os.path.basename(img_path).replace('.jpg', '.npy')
+        #if len(refined_cam_list) == 2:
+            # Compute the difference between the two CAMs
+          #  cam_diff = refined_cam_list[0] - refined_cam_list[1]
+
+            # Normalize the difference map for visualization
+           # cam_diff_norm = (cam_diff - np.min(cam_diff)) / (np.max(cam_diff) - np.min(cam_diff) + 1e-8)
+
+            # Save the difference map
+          #  output_diff_filename = os.path.basename(img_path).replace('.jpg', f'_{class_labels[0]}_minus_{class_labels[1]}.npy')
+           # np.save(os.path.join(args.cam_out_dir, output_diff_filename),
+                  #  {"key_diff": (class_labels[0], class_labels[1]),
+                   # "cam_diff": cam_diff_norm.astype(np.float16),
+#})
+       # else:
+           # print(f"Expected two refined CAMs, but got {len(refined_cam_list)} for image {img_path}")
 
         # 使用 os.path.join 拼接保存路径
-        np.save(os.path.join(args.cam_out_dir, output_filename),
-                {"keys": keys.numpy(),
+        #np.save(os.path.join(args.cam_out_dir, output_filename),
+                #{"keys": keys.numpy(),
                 # "strided_cam": cam_per_scales.cpu().numpy(),
                 #"highres": highres_cam_all_scales.cpu().numpy().astype(np.float16),
-                "attn_highres": refined_cam_all_scales.cpu().numpy().astype(np.float16),
-                })
-    return 0
+               # "attn_highres": refined_cam_all_scales.cpu().numpy().astype(np.float16),
+              #  })
+   # return 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--split_file', type=str, default='/home/zhang.13617/Desktop/BioCLIP_visualize/iNat/train_absolute.txt')
-    parser.add_argument('--cam_out_dir', type=str, default='/home/zhang.13617/Desktop/BioCLIP_visualize/output/cams')
+    parser.add_argument('--cam_out_dir', type=str, default='/home/zhang.13617/Desktop/BioCLIP_visualize/output/cams_top')
     args = parser.parse_args()
 
     device = "cuda" 
