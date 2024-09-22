@@ -1,8 +1,8 @@
 class_names = [
     "Summer Tanager",
     "Red Winged Blackbird",
-    "Scarlet Tanager",
     "Boat Tailed Grackle",
-    "German Shepherd",
-    "Cat"
+    "Zebra-finch-Taeniopygia-guttata-bird",
+    "AmericanGoldfinch_MattWilliams",
+    "Black-backed Dwarf-Kingfishe"
 ]

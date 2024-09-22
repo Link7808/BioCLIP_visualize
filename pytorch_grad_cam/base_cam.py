@@ -112,40 +112,40 @@ class BaseCAM:
         if isinstance(input_tensor, list):
             width, height = input_tensor[-1], input_tensor[-2]
         return width, height
-
+    
     def compute_cam_per_layer(
-            self,
-            input_tensor: torch.Tensor,
-            targets: List[torch.nn.Module],
-            target_size,
-            eigen_smooth: bool) -> np.ndarray:
-        activations_list = [a.cpu().data.numpy()
-                            for a in self.activations_and_grads.activations]
-        grads_list = [g.cpu().data.numpy()
-                      for g in self.activations_and_grads.gradients]
+                self,
+                input_tensor: torch.Tensor,
+                targets: List[torch.nn.Module],
+                target_size,
+                eigen_smooth: bool) -> np.ndarray:
+            activations_list = [a.cpu().data.numpy()
+                                for a in self.activations_and_grads.activations]
+            grads_list = [g.cpu().data.numpy()
+                        for g in self.activations_and_grads.gradients]
 
-        cam_per_target_layer = []
-        # Loop over the saliency image from every layer
-        for i in range(len(self.target_layers)):
-            target_layer = self.target_layers[i]
-            layer_activations = None
-            layer_grads = None
-            if i < len(activations_list):
-                layer_activations = activations_list[i]
-            if i < len(grads_list):
-                layer_grads = grads_list[i]
+            cam_per_target_layer = []
+            # Loop over the saliency image from every layer
+            for i in range(len(self.target_layers)):
+                target_layer = self.target_layers[i]
+                layer_activations = None
+                layer_grads = None
+                if i < len(activations_list):
+                    layer_activations = activations_list[i]
+                if i < len(grads_list):
+                    layer_grads = grads_list[i]
 
-            cam = self.get_cam_image(input_tensor,
-                                     target_layer,
-                                     targets,
-                                     layer_activations,
-                                     layer_grads,
-                                     eigen_smooth)
-            cam = np.maximum(cam, 0).astype(np.float32)#float16->32
-            scaled = scale_cam_image(cam, target_size)
-            cam_per_target_layer.append(scaled[:, None, :])
+                cam = self.get_cam_image(input_tensor,
+                                        target_layer,
+                                        targets,
+                                        layer_activations,
+                                        layer_grads,
+                                        eigen_smooth)
+                cam = np.maximum(cam, 0).astype(np.float32)#float16->32
+                scaled = scale_cam_image(cam, target_size)
+                cam_per_target_layer.append(scaled[:, None, :])
 
-        return cam_per_target_layer
+            return cam_per_target_layer
 
     def aggregate_multi_layers(self, cam_per_target_layer: np.ndarray) -> np.ndarray:
         cam_per_target_layer = np.concatenate(cam_per_target_layer, axis=1)
