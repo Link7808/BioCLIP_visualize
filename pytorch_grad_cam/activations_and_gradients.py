@@ -2,11 +2,13 @@ class ActivationsAndGradients:
     """ Class for extracting activations and
     registering gradients from targetted intermediate layers """
 
-    def __init__(self, model, target_layers, reshape_transform):
+    def __init__(self, model, target_layers, reshape_transform, h=None, w=None):
         self.model = model
         self.gradients = []
         self.activations = []
         self.reshape_transform = reshape_transform
+        self.height = h
+        self.width = w
         self.handles = []
         for target_layer in target_layers:
             self.handles.append(
@@ -18,8 +20,9 @@ class ActivationsAndGradients:
 
     def save_activation(self, module, input, output):
         activation = output
+
         if self.reshape_transform is not None:
-            activation = self.reshape_transform(activation)
+            activation = self.reshape_transform(activation, self.height, self.width)
         self.activations.append(activation.cpu().detach())
 
     def save_gradient(self, module, input, output):

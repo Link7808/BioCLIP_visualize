@@ -66,9 +66,9 @@ def main(cam_npy_path, img_path, output_path=None):
         visualize_cam_on_image(img, cam, output_path)
 
 if __name__ == "__main__":
-    cam_npy_dir = "/home/zhang.13617/Desktop/BioCLIP_visualize/output/cams"
-    train_absolute_txt = "/home/zhang.13617/Desktop/BioCLIP_visualize/train/train_absolute.txt"
-    output_dir = "/home/zhang.13617/Desktop/BioCLIP_visualize/output/cams"
+    cam_npy_dir = "/home/zhang.13617/Desktop/BioCLIP_visualize/cams"
+    train_absolute_txt = "/home/zhang.13617/Desktop/bioclip/summer_tanager/train.txt"
+    output_dir = "/home/zhang.13617/Desktop/BioCLIP_visualize/cams"
     
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
