@@ -20,18 +20,6 @@ python setup.py install
 
 
 
-## Step 1. Generate CAMs for train (train_aug) set.
-```
-CUDA_VISIBLE_DEVICES=0 python generate.py \
---img_root /home/zhang.13617/Desktop/CLIP-ES/datasets/Birds \
---split_file ./Bird1/train.txt \
---num_workers 1 \
---cam_out_dir ./output/Bird1/cams
-
-```
-
-
-
 
 
 
