@@ -74,14 +74,15 @@ class BaseCAM:
 
         W,H = self.get_target_width_height(input_tensor)
         outputs = self.activations_and_grads(input_tensor,H,W)
-        print(outputs)
+
         if targets is None:
             if isinstance(input_tensor, list):
                 target_categories = np.argmax(outputs[0].cpu().data.numpy(), axis=-1)
+                print("target_cate is ")
                 print(target_categories)
+                
             else:
                 target_categories = np.argmax(outputs.cpu().data.numpy(), axis=-1)
-                print(target_categories)
             targets = [ClassifierOutputTarget(category) for category in target_categories]
 
         if self.uses_gradients:
@@ -91,6 +92,8 @@ class BaseCAM:
             else:
                 loss = sum([target(output) for target, output in zip(targets, outputs)])
             loss.backward(retain_graph=True)
+            print ("loss is ")
+            print(loss)
 
         # In most of the saliency attribution papers, the saliency is
         # computed with a single target layer.

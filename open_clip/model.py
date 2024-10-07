@@ -223,13 +223,11 @@ class CLIP(nn.Module):
         x = x + self.positional_embedding.to(cast_dtype)
         x = x.permute(1, 0, 2)  # NLD -> LND
         
-        # 如果 transformer 返回两个值，解包并仅取第一个值
         x, _ = self.transformer(x, attn_mask=self.attn_mask)
         
         x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x)  # [batch_size, n_ctx, transformer.width]
         
-        # 取每个序列的 EOT embedding (EOT token 是每个序列中最大的 token)
         x = x[torch.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection
         
         return F.normalize(x, dim=-1) if normalize else x
@@ -254,7 +252,6 @@ class CLIP(nn.Module):
         logits_per_image = logit_scale * image_features @ text_features.t()
 
         # shape = [global_batch_size, global_batch_size]
-        logits_per_image = logits_per_image.softmax(dim=-1)
 
         return logits_per_image, attn_weight
 
